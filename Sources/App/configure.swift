@@ -15,6 +15,8 @@ public func configure(_ app: Application) throws {
     app.views.use(.leaf)
 
     _ = app.autoMigrate()
+    
+    app.http.server.configuration.port = 80
 
     // register routes
     try routes(app)
