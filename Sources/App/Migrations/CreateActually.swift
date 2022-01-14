@@ -1,14 +1,14 @@
 import Fluent
 
-struct CreateTodo: Migration {
+struct CreateActually: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
-        return database.schema("todos")
+        return database.schema("actuallys")
             .id()
-            .field("title", .string, .required)
+            .field("created_at", .datetime)
             .create()
     }
 
     func revert(on database: Database) -> EventLoopFuture<Void> {
-        return database.schema("todos").delete()
+        return database.schema("actuallys").delete()
     }
 }

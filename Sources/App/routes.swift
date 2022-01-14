@@ -2,13 +2,91 @@ import Fluent
 import Vapor
 
 func routes(_ app: Application) throws {
-    app.get { req in
-        return req.view.render("index", ["title": "Hello Vapor!"])
+    app.get { req -> EventLoopFuture<View> in
+        Actually
+            .query(on: req.db)
+            .sort(\.$createdAt)
+            .all()
+            .flatMap { actuallys in
+                let total = actuallys.count
+                
+                let days = actuallys
+                    .sliced(by: [.year, .month, .day], for: \.createdAt)
+                    .sorted { $0.key < $1.key }
+                
+                let average: Int = {
+                    guard !days.isEmpty else { return 0 }
+                    
+                    var n = 0
+                    for day in days {
+                        n += day.value.count
+                    }
+                    return n / days.count
+                }()
+                
+                let amountPerDay: [ActuallyGroup.AmountPerDayData] = days
+                    .enumerated()
+                    .map {
+                        .init(classNumber: $0.offset + 3, amount: $0.element.value.count)
+                    }
+                    .reversed()
+                
+                
+                let data = ActuallyGroup(sortedList: actuallys,
+                                         total: total,
+                                         average: average,
+                                         amountPerDay: amountPerDay)
+                
+                
+                return req.view.render("index.leaf", ["data": data])
+            }
     }
-
-    app.get("hello") { req -> String in
-        return "Hello, world!"
+    
+    app.get("number") { req -> EventLoopFuture<Int> in
+        Actually
+            .query(on: req.db)
+            .all()
+            .map { actuallys in
+                actuallys.count
+            }
     }
-
-    try app.register(collection: TodoController())
+    
+    app.post("newactually") { req -> EventLoopFuture<HTTPStatus> in
+        Actually()
+            .save(on: req.db)
+            .transform(to: .ok)
+    }
+    
+    app.delete("latest") { req -> EventLoopFuture<HTTPStatus> in
+        Actually
+            .query(on: req.db)
+            .sort(\.$createdAt)
+            .first()
+            .unwrap(or: Abort(.internalServerError))
+            .flatMap { actually in
+                actually
+                    .delete(on: req.db)
+                    .transform(to: .ok)
+            }
+            
+    }
 }
+
+
+extension Array {
+    func sliced(by dateComponents: Set<Calendar.Component>, for key: KeyPath<Element, Date?>) -> [Date: [Element]] {
+        let initial: [Date: [Element]] = [:]
+        let groupedByDateComponents = reduce(into: initial) { acc, cur in
+            let components = Calendar.current.dateComponents(dateComponents, from: cur[keyPath: key]!)
+            let date = Calendar.current.date(from: components)!
+            acc[date, default: []] += [cur]
+        }
+        
+        return groupedByDateComponents
+    }
+}
+
+
+
+
+
