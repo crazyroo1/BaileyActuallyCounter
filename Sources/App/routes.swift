@@ -68,7 +68,7 @@ func routes(_ app: Application) throws {
     app.delete("latest") { req -> EventLoopFuture<HTTPStatus> in
         Actually
             .query(on: req.db)
-            .sort(\.$createdAt)
+            .sort(\.$createdAt, .descending)
             .first()
             .unwrap(or: Abort(.internalServerError))
             .flatMap { actually in
