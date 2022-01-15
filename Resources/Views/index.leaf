@@ -60,7 +60,7 @@
     
     <script type="text/javascript">
         if("WebSocket" in window) {
-            var webSocket = new WebSocket("ws://" + window.location.host + "/socket");
+            var webSocket = new WebSocket("wss://" + window.location.host + "/socket");
             
             webSocket.onopen = function() {
                 webSocket.send("test");
