@@ -45,44 +45,35 @@
                   outline: 0;
                 }
             </style>
-            <title>Actually Counter</title>
+            <title>Actually Counter - Statistics</title>
     </head>
-    
     <body>
-        <h1>Professor Bailey has said “actually” <total id="total" style="color: red">#(data.total)</total> times this semester</h1>
-        <p>since the third day of class</p>
+        <h2>There is an average of <average style="color: red">#(data.average)</average> actuallys per day</h2>
         <br>
-        <a class="button-11" role="button" href="statistics">View Statistics</a>
+        <table class="center">
+            <tr>
+                <th>Class</th>
+                <th>Actuallys</th>
+            </tr>
+        #for(amount in data.amountPerDay):
+            <tr>
+                <td>#(amount.classNumber)</td>
+                <td>#(amount.amount)</td>
+            </tr>
+        #endfor
+            <tr>
+                <td>2</td>
+                <td>unknown</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>unknown</td>
+            </tr>
+        </table>
+        <br>
+        <a class="button-11" role="button" href="/">Home</a>
         <br>
         <br>
         <a class="button-11" role="button" href="https://turnereison.com">Created by Turner Eison</a>
     </body>
-    
-    <script type="text/javascript">
-        if("WebSocket" in window) {
-            var webSocket = new WebSocket("ws://" + window.location.host + "/socket");
-            
-            webSocket.onopen = function() {
-                webSocket.send("test");
-            }
-            
-            webSocket.onmessage = function(event) {
-                var message = event.data;
-                console.log("Message received: " + message);
-                
-                if(message === "newactually") {
-                    webSocket.send("number");
-                }
-                
-                if(!Number.isNaN(Number(message))) {
-                    document.getElementById("total").innerHTML = Number(message);
-                }
-            }
-            
-            webSocket.onclose = function() {
-                alert("Websocket closed");
-            }
-        }
-    </script>
-    
 </html>

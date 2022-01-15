@@ -2,12 +2,12 @@ import Fluent
 import Vapor
 
 func routes(_ app: Application) throws {
-    app.get { req -> EventLoopFuture<View> in
+    func getStatisticalData(_ req: Request) -> EventLoopFuture<ActuallyGroup> {
         Actually
             .query(on: req.db)
             .sort(\.$createdAt)
             .all()
-            .flatMap { actuallys in
+            .map { actuallys in
                 let total = actuallys.count
                 
                 let days = actuallys
@@ -38,7 +38,21 @@ func routes(_ app: Application) throws {
                                          amountPerDay: amountPerDay)
                 
                 
-                return req.view.render("index.leaf", ["data": data])
+                return data
+            }
+    }
+    
+    app.get { req -> EventLoopFuture<View> in
+        getStatisticalData(req)
+            .flatMap { data in
+                req.view.render("index", ["data": data])
+            }
+    }
+    
+    app.get("statistics") { req -> EventLoopFuture<View> in
+        getStatisticalData(req)
+            .flatMap { data in
+                req.view.render("statistics", ["data": data])
             }
     }
     
@@ -49,12 +63,6 @@ func routes(_ app: Application) throws {
             .map { actuallys in
                 actuallys.count
             }
-    }
-    
-    app.post("newactually") { req -> EventLoopFuture<HTTPStatus> in
-        Actually()
-            .save(on: req.db)
-            .transform(to: .ok)
     }
     
     app.delete("latest") { req -> EventLoopFuture<HTTPStatus> in
@@ -69,6 +77,34 @@ func routes(_ app: Application) throws {
                     .transform(to: .ok)
             }
             
+    }
+    
+    let clients = WebsocketClients(eventLoop: app.eventLoopGroup.any())
+    
+    app.webSocket("socket") { req, socket in
+        clients.add(WebSocketClient(socket: socket))
+        
+        socket.onText { socket, message in
+            if message == "number" {
+                Actually
+                    .query(on: req.db)
+                    .all()
+                    .map { actuallys in
+                        socket.send("\(actuallys.count)")
+                    }
+            }
+        }
+    }
+    
+    app.post("newactually") { req -> EventLoopFuture<HTTPStatus> in
+        Actually()
+            .save(on: req.db)
+            .map {
+                clients.storage.forEach { client in
+                    client.socket.send("newactually", promise: nil)
+                }
+            }
+            .transform(to: .ok)
     }
 }
 
@@ -85,8 +121,3 @@ extension Array {
         return groupedByDateComponents
     }
 }
-
-
-
-
-
