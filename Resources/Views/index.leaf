@@ -80,7 +80,7 @@
             }
             
             webSocket.onclose = function() {
-                alert("Websocket closed");
+                console.log("Websocket closed");
             }
         }
     </script>
