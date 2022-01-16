@@ -2,6 +2,8 @@ import Fluent
 import Vapor
 
 func routes(_ app: Application) throws {
+    let clients = WebsocketClients(eventLoop: app.eventLoopGroup.any())
+    
     func getStatisticalData(_ req: Request) -> EventLoopFuture<ActuallyGroup> {
         Actually
             .query(on: req.db)
@@ -65,37 +67,6 @@ func routes(_ app: Application) throws {
             }
     }
     
-    app.delete("latest") { req -> EventLoopFuture<HTTPStatus> in
-        Actually
-            .query(on: req.db)
-            .sort(\.$createdAt, .descending)
-            .first()
-            .unwrap(or: Abort(.internalServerError))
-            .flatMap { actually in
-                actually
-                    .delete(on: req.db)
-                    .transform(to: .ok)
-            }
-            
-    }
-    
-    let clients = WebsocketClients(eventLoop: app.eventLoopGroup.any())
-    
-    app.webSocket("socket") { req, socket in
-        clients.add(WebSocketClient(socket: socket))
-        
-        socket.onText { socket, message in
-            if message == "number" {
-                Actually
-                    .query(on: req.db)
-                    .all()
-                    .map { actuallys in
-                        socket.send("\(actuallys.count)")
-                    }
-            }
-        }
-    }
-    
     app.post("newactually") { req -> EventLoopFuture<HTTPStatus> in
         Actually()
             .save(on: req.db)
@@ -105,6 +76,40 @@ func routes(_ app: Application) throws {
                 }
             }
             .transform(to: .ok)
+    }
+    
+    app.delete("latest") { req -> EventLoopFuture<HTTPStatus> in
+        Actually
+            .query(on: req.db)
+            .sort(\.$createdAt, .descending)
+            .first()
+            .unwrap(or: Abort(.internalServerError))
+            .flatMap { actually in
+                actually
+                    .delete(on: req.db)
+                    .map {
+                        clients.storage.forEach { client in
+                            client.socket.send("newactually", promise: nil)
+                        }
+                    }
+                    .transform(to: .ok)
+            }
+            
+    }
+    
+    app.webSocket("socket") { req, socket in
+        clients.add(WebSocketClient(socket: socket))
+        
+        socket.onText { socket, message in
+            if message == "number" {
+                _ = Actually
+                    .query(on: req.db)
+                    .all()
+                    .map { actuallys in
+                        socket.send("\(actuallys.count)")
+                    }
+            }
+        }
     }
 }
 
