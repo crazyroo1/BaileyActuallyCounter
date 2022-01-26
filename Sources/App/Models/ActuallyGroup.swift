@@ -17,5 +17,6 @@ struct ActuallyGroup: Encodable {
     struct AmountPerDayData: Encodable {
         let classNumber: Int
         let amount: Int
+        let averageSecondsBetween: Int
     }
 }

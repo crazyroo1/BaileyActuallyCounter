@@ -29,8 +29,21 @@ func routes(_ app: Application) throws {
                 
                 let amountPerDay: [ActuallyGroup.AmountPerDayData] = days
                     .enumerated()
-                    .map {
-                        .init(classNumber: $0.offset + 3, amount: $0.element.value.count)
+                    .map { day in
+                        let averageSecondsBetween: Int = {
+                            let sortedActuallys = day.element.value.sorted { lhs, rhs in lhs.createdAt! < rhs.createdAt! }
+                            
+                            var totalSeconds = 0
+                            for i in 0 ... sortedActuallys.count - 2 {
+                                let first = sortedActuallys[i].createdAt!
+                                let second = sortedActuallys[i+1].createdAt!
+                                totalSeconds += Int(second.timeIntervalSince(first) + 0.5)
+                            }
+                            return totalSeconds / (sortedActuallys.count - 1)
+                        }()
+                        return .init(classNumber: day.offset + 3,
+                                     amount: day.element.value.count,
+                                     averageSecondsBetween: averageSecondsBetween)
                     }
                     .reversed()
                 

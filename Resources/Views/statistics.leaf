@@ -54,19 +54,23 @@
             <tr>
                 <th>Class</th>
                 <th>Actuallys</th>
+                <th>Seconds Between</th>
             </tr>
         #for(amount in data.amountPerDay):
             <tr>
                 <td>#(amount.classNumber)</td>
                 <td>#(amount.amount)</td>
+                <td>#(amount.averageSecondsBetween)</td>
             </tr>
         #endfor
             <tr>
                 <td>2</td>
                 <td>unknown</td>
+                <td>unknown</td>
             </tr>
             <tr>
                 <td>1</td>
+                <td>unknown</td>
                 <td>unknown</td>
             </tr>
         </table>
