@@ -19,11 +19,12 @@ func routes(_ app: Application) throws {
                 let average: Int = {
                     guard !days.isEmpty else { return 0 }
                     
+                    let filteredDays = days.filter { $0.value.count > 50 }
                     var n = 0
-                    for day in days {
+                    for day in filteredDays {
                         n += day.value.count
                     }
-                    return n / days.count
+                    return n / filteredDays.count
                 }()
                 
                 let amountPerDay: [ActuallyGroup.AmountPerDayData] = days
