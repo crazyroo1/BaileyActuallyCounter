@@ -34,6 +34,7 @@ func routes(_ app: Application) throws {
                             let sortedActuallys = day.element.value.sorted { lhs, rhs in lhs.createdAt! < rhs.createdAt! }
                             
                             var totalSeconds = 0
+                            guard sortedActuallys.count >= 2 else { return 0 }
                             for i in 0 ... sortedActuallys.count - 2 {
                                 let first = sortedActuallys[i].createdAt!
                                 let second = sortedActuallys[i+1].createdAt!
