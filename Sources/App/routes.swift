@@ -146,9 +146,13 @@ func routes(_ app: Application) throws {
                     }
 
                     let data = try! JSONEncoder().encode(SocketData(total: actuallys.count, today: today.count))
-                    clients.storage.filter { !$0.socket.isClosed }.map { $0.socket }.forEach { socket in
-                        socket.send(raw: data, opcode: .binary)
-                    }
+                    clients
+                        .storage
+                        .filter { !$0.socket.isClosed }
+                        .map { $0.socket }
+                        .forEach { socket in
+                            socket.send(raw: data, opcode: .binary)
+                        }
                 }
         }
     }
