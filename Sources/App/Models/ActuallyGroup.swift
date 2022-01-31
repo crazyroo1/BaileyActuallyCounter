@@ -11,6 +11,7 @@ import Vapor
 struct ActuallyGroup: Encodable {
     let sortedList: [Actually]
     let total: Int
+    let today: Int
     let average: Int
     let amountPerDay: [AmountPerDayData]
     

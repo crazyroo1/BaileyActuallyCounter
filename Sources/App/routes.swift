@@ -4,6 +4,21 @@ import Vapor
 func routes(_ app: Application) throws {
     let clients = WebsocketClients(eventLoop: app.eventLoopGroup.any())
     
+    /// Resets the websocket storage every 12 hours to clear out all dead sockets
+    func resetClients() {
+        DispatchQueue(label: "client_reset").asyncAfter(deadline: .now() + (60 * 60 * 12)) {
+            clients.storage.forEach { client in
+                _ = client.socket.close()
+            }
+            clients.storage = []
+            print("Clients reset!")
+            resetClients()
+        }
+        print("Client reset scheduled for 12 hours from now.")
+    }
+    
+    resetClients()
+    
     func getStatisticalData(_ req: Request) -> EventLoopFuture<ActuallyGroup> {
         Actually
             .query(on: req.db)
@@ -51,6 +66,7 @@ func routes(_ app: Application) throws {
                 
                 let data = ActuallyGroup(sortedList: actuallys,
                                          total: total,
+                                         today: amountPerDay.first?.amount ?? 0,
                                          average: average,
                                          amountPerDay: amountPerDay)
                 
@@ -86,9 +102,7 @@ func routes(_ app: Application) throws {
         Actually()
             .save(on: req.db)
             .map {
-                clients.storage.forEach { client in
-                    client.socket.send("newactually", promise: nil)
-                }
+                sendNewCountToAllSockets()
             }
             .transform(to: .ok)
     }
@@ -103,9 +117,7 @@ func routes(_ app: Application) throws {
                 actually
                     .delete(on: req.db)
                     .map {
-                        clients.storage.forEach { client in
-                            client.socket.send("newactually", promise: nil)
-                        }
+                        sendNewCountToAllSockets()
                     }
                     .transform(to: .ok)
             }
@@ -114,16 +126,30 @@ func routes(_ app: Application) throws {
     
     app.webSocket("socket") { req, socket in
         clients.add(WebSocketClient(socket: socket))
-        
-        socket.onText { socket, message in
-            if message == "number" {
-                _ = Actually
-                    .query(on: req.db)
-                    .all()
-                    .map { actuallys in
-                        socket.send("\(actuallys.count)")
+    }
+    
+    func sendNewCountToAllSockets() {
+        app.eventLoopGroup.any().execute {
+            _ = Actually
+                .query(on: app.db)
+                .all()
+                .map { actuallys in
+                    let today = actuallys
+                        .sliced(by: [.year, .month, .day, .hour, .minute], for: \.createdAt)
+                        .sorted { $0.key < $1.key }
+                        .last!
+                        .value
+
+                    struct SocketData: Codable {
+                        let total: Int
+                        let today: Int
                     }
-            }
+
+                    let data = try! JSONEncoder().encode(SocketData(total: actuallys.count, today: today.count))
+                    clients.storage.filter { !$0.socket.isClosed }.map { $0.socket }.forEach { socket in
+                        socket.send(raw: data, opcode: .binary)
+                    }
+                }
         }
     }
 }

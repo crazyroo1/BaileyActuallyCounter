@@ -52,6 +52,10 @@
         <h1>Professor Bailey has said “actually” <total id="total" style="color: red">#(data.total)</total> times this semester</h1>
         <p>since the third day of class</p>
         <br>
+        <h2>Today, he has said “actually” <today id="today" style="color: red">#(data.today)</today> times</h2>
+        <i style="color: gray">This page automatically updates</i>
+        <br>
+        <br>
         <a class="button-11" role="button" href="statistics">View Statistics</a>
         <br>
         <br>
@@ -60,6 +64,16 @@
     
     <script type="text/javascript">
         if("WebSocket" in window) {
+            function blobToJson(blob) {
+                return new Promise((resolve, reject) => {
+                    let fr = new FileReader();
+                    fr.onload = () => {
+                        resolve(JSON.parse(fr.result));
+                    };
+                    fr.readAsText(blob);
+                });
+            }
+        
             var webSocket = new WebSocket("wss://" + window.location.host + "/socket");
             
             webSocket.onopen = function() {
@@ -68,15 +82,14 @@
             
             webSocket.onmessage = function(event) {
                 var message = event.data;
-                console.log("Message received: " + message);
-                
-                if(message === "newactually") {
-                    webSocket.send("number");
-                }
-                
-                if(!Number.isNaN(Number(message))) {
-                    document.getElementById("total").innerHTML = Number(message);
-                }
+                blobToJson(message).then(obj => {
+                    console.log("new update received");
+                    console.log("total: " + obj.total);
+                    console.log("today: " + obj.today);
+                    
+                    document.getElementById("total").innerHTML = obj.total;
+                    document.getElementById("today").innerHTML = obj.today;
+                })
             }
             
             webSocket.onclose = function() {
