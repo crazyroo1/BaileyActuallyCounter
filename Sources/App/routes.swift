@@ -135,7 +135,7 @@ func routes(_ app: Application) throws {
                 .all()
                 .map { actuallys in
                     let today = actuallys
-                        .sliced(by: [.year, .month, .day, .hour, .minute], for: \.createdAt)
+                        .sliced(by: [.year, .month, .day], for: \.createdAt)
                         .sorted { $0.key < $1.key }
                         .last!
                         .value
