@@ -4,7 +4,7 @@ import Vapor
 func routes(_ app: Application) throws {
     let clients = WebsocketClients(eventLoop: app.eventLoopGroup.any())
     
-    /// Resets the websocket storage every 12 hours to clear out all dead sockets
+    /// Resets the websocket storage every 12 hours to clear out all sockets
     func resetClients() {
         DispatchQueue(label: "client_reset").asyncAfter(deadline: .now() + (60 * 60 * 12)) {
             clients.storage.forEach { client in
@@ -16,8 +16,23 @@ func routes(_ app: Application) throws {
         }
         print("Client reset scheduled for 12 hours from now.")
     }
-    
     resetClients()
+    
+    /// Flushes closed sockets from the storage
+    func flushClosedSockets() {
+        DispatchQueue(label: "client_partial_empty").asyncAfter(deadline: .now() + (60 * 2)) {
+            defer {
+                flushClosedSockets()
+            }
+            guard !clients.storage.isEmpty else { return }
+            
+            let oldCount = clients.storage.count
+            let newCount = clients.active.count
+            clients.storage = clients.active
+            print("Closed clients flushed from \(oldCount) to \(newCount)")
+        }
+    }
+    flushClosedSockets()
     
     func getStatisticalData(_ req: Request) -> EventLoopFuture<ActuallyGroup> {
         Actually
@@ -89,12 +104,12 @@ func routes(_ app: Application) throws {
             }
     }
     
-    app.get("number") { req -> EventLoopFuture<Int> in
+    app.get("quickdata") { req -> EventLoopFuture<QuickData> in
         Actually
             .query(on: req.db)
             .all()
             .map { actuallys in
-                actuallys.count
+                QuickData(total: actuallys.count, today: actuallys.today.count)
             }
     }
     
@@ -126,6 +141,11 @@ func routes(_ app: Application) throws {
     
     app.webSocket("socket") { req, socket in
         clients.add(WebSocketClient(socket: socket))
+        
+        _ = socket.onClose.map {
+            print("Socket closed. Will be flushed within 2 minutes.")
+        }
+        print("Socket opened. New socket count: \(clients.active.count)/\(clients.storage.count)")
     }
     
     func sendNewCountToAllSockets() {
@@ -134,21 +154,9 @@ func routes(_ app: Application) throws {
                 .query(on: app.db)
                 .all()
                 .map { actuallys in
-                    let today = actuallys
-                        .sliced(by: [.year, .month, .day], for: \.createdAt)
-                        .sorted { $0.key < $1.key }
-                        .last!
-                        .value
-
-                    struct SocketData: Codable {
-                        let total: Int
-                        let today: Int
-                    }
-
-                    let data = try! JSONEncoder().encode(SocketData(total: actuallys.count, today: today.count))
+                    let data = try! JSONEncoder().encode(QuickData(total: actuallys.count, today: actuallys.today.count))
                     clients
-                        .storage
-                        .filter { !$0.socket.isClosed }
+                        .active
                         .map { $0.socket }
                         .forEach { socket in
                             socket.send(raw: data, opcode: .binary)
@@ -158,6 +166,16 @@ func routes(_ app: Application) throws {
     }
 }
 
+extension Array where Element == Actually {
+    var today: [Actually] {
+        self
+            .sliced(by: [.year, .month, .day], for: \.createdAt)
+            .sorted { $0.key < $1.key }
+            .last?
+            .value
+            ?? []
+    }
+}
 
 extension Array {
     func sliced(by dateComponents: Set<Calendar.Component>, for key: KeyPath<Element, Date?>) -> [Date: [Element]] {
