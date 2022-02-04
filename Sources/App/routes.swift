@@ -143,7 +143,7 @@ func routes(_ app: Application) throws {
         clients.add(WebSocketClient(socket: socket))
         
         _ = socket.onClose.map {
-            print("Socket closed. Will be flushed within 2 minutes.")
+            print("Socket closed. New socket count: \(clients.active.count)/\(clients.storage.count)")
         }
         print("Socket opened. New socket count: \(clients.active.count)/\(clients.storage.count)")
     }
