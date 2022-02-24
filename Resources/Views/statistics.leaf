@@ -59,7 +59,11 @@
         #for(amount in data.amountPerDay):
             <tr>
                 <td>#(amount.classNumber)</td>
-                <td>#(amount.amount)</td>
+                #if(amount.amount == "999"):
+                    <td>unknown</td>
+                #else:
+                    <td>#(amount.amount)</td>
+                #endif
                 <td>#(amount.averageSecondsBetween)</td>
             </tr>
         #endfor

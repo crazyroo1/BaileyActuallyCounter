@@ -49,7 +49,7 @@ func routes(_ app: Application) throws {
                 let average: Int = {
                     guard !days.isEmpty else { return 0 }
                     
-                    let filteredDays = days.filter { $0.value.count > 50 }
+                    let filteredDays = days.filter { (50...500).contains($0.value.count) }
                     var n = 0
                     for day in filteredDays {
                         n += day.value.count
@@ -78,10 +78,14 @@ func routes(_ app: Application) throws {
                     }
                     .reversed()
                 
+                let today: Int = {
+                    guard let today = amountPerDay.first?.amount else { return 0 }
+                    return today != 999 ? today : -1
+                }()
                 
                 let data = ActuallyGroup(sortedList: actuallys,
                                          total: total,
-                                         today: amountPerDay.first?.amount ?? 0,
+                                         today: today,
                                          average: average,
                                          amountPerDay: amountPerDay)
                 
@@ -119,6 +123,20 @@ func routes(_ app: Application) throws {
             .map {
                 sendNewCountToAllSockets()
             }
+            .transform(to: .ok)
+    }
+    
+    app.post("unknownDay") { req -> EventLoopFuture<HTTPStatus> in
+        var futures = [EventLoopFuture<Void>]()
+        for _ in 0 ..< 999 {
+            futures.append(
+                Actually()
+                    .save(on: req.db)
+            )
+        }
+        
+        return EventLoopFuture
+            .andAllComplete(futures, on: req.eventLoop)
             .transform(to: .ok)
     }
     
