@@ -40,7 +40,7 @@ func routes(_ app: Application) throws {
             .sort(\.$createdAt)
             .all()
             .map { actuallys in
-                let total = actuallys.count
+                let total = actuallys.count - QuickData.numberOfUnknownDays * 999
                 
                 let days = actuallys
                     .sliced(by: [.year, .month, .day], for: \.createdAt)
