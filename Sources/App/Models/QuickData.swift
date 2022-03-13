@@ -10,7 +10,7 @@ import Vapor
 
 struct QuickData: Content {
     // Manually increment this on unknown days
-    static let numberOfUnknownDays = 1
+    static let numberOfUnknownDays = 2
     let total: Int
     let today: Int
     
